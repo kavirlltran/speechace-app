@@ -2,22 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Speech Pronunciation Practice</title>
-  <script src="app.js" defer></script>
-  <link href="styles.css" rel="stylesheet">
+  <title>Speech Practice</title>
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <div class="container">
-    <h1>Speech Pronunciation Practice</h1>
-    <select id="sentenceSelector">
-      <option value="Hello, how are you today?">Hello, how are you today?</option>
-      <option value="My name is John and I live in New York.">My name is John and I live in New York.</option>
-      <option value="This is a sample sentence for practice.">This is a sample sentence for practice.</option>
-    </select>
-    <div id="text">Hello, how are you today?</div>
-    <button id="startBtn">🎤 Start Recording</button>
-    <button id="stopBtn">🛑 Stop</button>
-    <div id="results"></div>
+    <h1>Speech Practice</h1>
+    <textarea id="text-input" placeholder="Type your sentence here..."></textarea>
+    <div class="buttons">
+      <button id="startBtn">Start Recording</button>
+      <button id="stopBtn" disabled>Stop Recording</button>
+    </div>
+    <div id="result"></div>
   </div>
+
+  <script src="/script.js"></script>
 </body>
 </html>

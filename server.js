@@ -1,47 +1,59 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const axios = require('axios');
+const express = require("express");
+const multer = require("multer");
+const cors = require("cors");
+const dotenv = require("dotenv");
+const fetch = require("node-fetch");
+const path = require("path");
+const fs = require("fs");
+
+dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3001;
-
 app.use(cors());
-app.use(express.json());
+app.use(express.static("public"));
 
-app.post('/api/speechace', async (req, res) => {
-  const { text, audio_url } = req.body;
+const upload = multer({ dest: "uploads/" });
 
-  if (!text || !audio_url) {
+app.post("/api/speechace", upload.single("audio"), async (req, res) => {
+  const apiKey = process.env.SPEECHACE_API_KEY;
+  const audioFilePath = req.file.path;
+  const sentence = req.body.text;
+
+  if (!apiKey || !sentence) {
     return res.status(400).json({
-      status: 'error',
-      short_message: 'error_missing_parameters',
-      detail_message: 'Missing "text" or "audio_url"',
+      status: "error",
+      short_message: "error_missing_parameters",
+      detail_message: "Missing API key or text"
     });
   }
 
+  const apiUrl = "https://api.speechace.co/api/scoring/text/v9/json";
+
+  const formData = new FormData();
+  formData.append("key", apiKey);
+  formData.append("dialect", "en-us");
+  formData.append("user_id", "testuser@example.com");
+  formData.append("text", sentence);
+  formData.append("audio_file", fs.createReadStream(audioFilePath));
+
   try {
-    const response = await axios.get(process.env.SPEECHACE_API_URL, {
-      params: {
-        key: process.env.SPEECHACE_API_KEY,
-        dialect: 'en-us',
-        user_audio_url: audio_url,
-        text,
-        user_id: 'test_user_1',
-      },
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      body: formData,
     });
 
-    res.json(response.data);
-  } catch (error) {
-    console.error('SpeechAce API error:', error.response?.data || error.message);
-    res.status(500).json({
-      status: 'error',
-      short_message: 'speechace_api_error',
-      detail_message: error.response?.data || error.message,
-    });
+    const result = await response.json();
+    res.json(result);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Speechace API error" });
+  } finally {
+    fs.unlink(audioFilePath, () => {}); // cleanup
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });

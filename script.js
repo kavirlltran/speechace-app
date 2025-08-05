@@ -1,53 +1,64 @@
+const startBtn = document.getElementById("startBtn");
+const stopBtn = document.getElementById("stopBtn");
+const resultDiv = document.getElementById("result");
+const textInput = document.getElementById("text-input");
+
 let mediaRecorder;
-let audioChunks = [];
+let chunks = [];
 
-const startBtn = document.getElementById('start-recording');
-const stopBtn = document.getElementById('stop-recording');
-const resultContainer = document.getElementById('result');
+startBtn.addEventListener("click", async () => {
+  const sentence = textInput.value.trim();
+  if (!sentence) {
+    alert("Please enter a sentence to compare.");
+    return;
+  }
 
-startBtn.onclick = async () => {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
 
-        mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
+    chunks = [];
 
-        mediaRecorder.ondataavailable = e => {
-            if (e.data.size > 0) {
-                audioChunks.push(e.data);
-            }
-        };
+    mediaRecorder.ondataavailable = e => chunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+      const blob = new Blob(chunks, { type: "audio/webm" });
 
-        mediaRecorder.onstop = () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-            const formData = new FormData();
-            formData.append('audio', audioBlob);
+      const formData = new FormData();
+      formData.append("audio", blob, "recording.webm");
+      formData.append("text", sentence);
 
-            fetch('/analyze', {
-                method: 'POST',
-                body: formData
-            })
-            .then(res => res.json())
-            .then(data => {
-                resultContainer.textContent = data.result || "No result returned.";
-            })
-            .catch(err => {
-                console.error("Audio analysis error:", err);
-                resultContainer.textContent = "Error sending recording";
-            });
-        };
+      try {
+        const res = await fetch("/api/speechace", {
+          method: "POST",
+          body: formData
+        });
 
-        mediaRecorder.start();
-        console.log("Recording started");
-    } catch (err) {
-        console.error("Cannot access microphone:", err);
-        alert("You need to allow microphone access to use this feature.");
-    }
-};
+        const data = await res.json();
+        resultDiv.textContent = JSON.stringify(data, null, 2);
 
-stopBtn.onclick = () => {
-    if (mediaRecorder && mediaRecorder.state !== "inactive") {
-        mediaRecorder.stop();
-        console.log("Recording stopped");
-    }
-};
+      } catch (err) {
+        console.error(err);
+        resultDiv.textContent = "Error: Unable to send audio.";
+      }
+
+      startBtn.classList.remove("recording");
+      stopBtn.disabled = true;
+      stopBtn.classList.remove("active");
+    };
+
+    mediaRecorder.start();
+    startBtn.classList.add("recording");
+    stopBtn.disabled = false;
+    stopBtn.classList.add("active");
+
+  } catch (err) {
+    alert("Microphone access denied.");
+    console.error(err);
+  }
+});
+
+stopBtn.addEventListener("click", () => {
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+  }
+});
