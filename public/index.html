@@ -1,135 +1,147 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pronunciation Practice</title>
-    <link rel="stylesheet" href="/style.css" />
-    <style>
-      body {
-        margin: 0;
-        font-family: 'Segoe UI', sans-serif;
-        background: url('/background.png') no-repeat center center fixed;
-        background-size: cover;
-        color: white;
-        backdrop-filter: brightness(0.8);
-      }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pronunciation Practice</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-image: url('ChatGPT Image 21_24_03 5 thg 8, 2025.png');
+      background-size: cover;
+      background-position: center;
+      color: #fff;
+      text-align: center;
+      backdrop-filter: brightness(0.6);
+    }
 
-      .overlay {
-        background: rgba(0, 0, 0, 0.5);
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 40px 20px;
-        box-sizing: border-box;
-        text-align: center;
-      }
+    .container {
+      padding: 40px 20px;
+      background: rgba(0, 0, 0, 0.5);
+      margin: 50px auto;
+      max-width: 800px;
+      border-radius: 20px;
+      box-shadow: 0 0 20px #00ffff88;
+    }
 
-      h1 {
-        font-size: 2.5em;
-        margin-bottom: 20px;
-        text-shadow: 0 0 10px #00f0ff, 0 0 20px #00f0ff;
-      }
+    h1 {
+      font-size: 2.5rem;
+      text-shadow: 0 0 10px #00f0ff;
+    }
 
-      input[type='text'] {
-        padding: 12px;
-        font-size: 1.2em;
-        width: 80%;
-        max-width: 500px;
-        margin-bottom: 20px;
-        border-radius: 8px;
-        border: none;
-        outline: none;
-      }
+    #script {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      line-height: 1.6;
+      text-shadow: 0 0 5px #ffffffaa;
+    }
 
-      .buttons {
-        display: flex;
-        gap: 20px;
-        justify-content: center;
-        margin-bottom: 30px;
-      }
+    button {
+      padding: 15px 30px;
+      margin: 10px;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: 0.3s;
+      box-shadow: 0 0 10px #00ffff88;
+    }
 
-      button {
-        padding: 12px 24px;
-        font-size: 1.1em;
-        border: none;
-        border-radius: 30px;
-        background: linear-gradient(to right, #00f0ff, #00cfff);
-        color: black;
-        font-weight: bold;
-        cursor: pointer;
-        box-shadow: 0 0 10px #00f0ff, 0 0 20px #00cfff;
-        transition: transform 0.2s, box-shadow 0.2s;
-      }
+    #recordBtn.active {
+      background: #ff0066;
+      color: #fff;
+    }
 
-      button:hover {
-        transform: scale(1.05);
-        box-shadow: 0 0 20px #00f0ff, 0 0 30px #00cfff;
-      }
+    #stopBtn {
+      background: #0066ff;
+      color: #fff;
+    }
 
-      button.active {
-        background: #00ffae;
-        box-shadow: 0 0 20px #00ffae, 0 0 30px #00ffae;
-      }
+    #stopBtn:disabled {
+      background: #444;
+    }
 
-      .result {
-        font-size: 1.2em;
-        padding: 20px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        box-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
-        max-width: 700px;
-        margin: auto;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="overlay">
-      <h1>Pronunciation Practice</h1>
-      <input type="text" id="textInput" placeholder="Enter text to practice..." />
-      <div class="buttons">
-        <button id="startBtn">🎙 Start</button>
-        <button id="stopBtn" disabled>🛑 Stop</button>
-      </div>
-      <div class="result" id="resultText">Your pronunciation analysis will appear here.</div>
-    </div>
+    #audioPlayer {
+      margin-top: 20px;
+    }
 
-    <script>
-      const startBtn = document.getElementById('startBtn');
-      const stopBtn = document.getElementById('stopBtn');
-      let recognition;
+    a {
+      color: #00ffff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Pronunciation Practice</h1>
+    <div id="script">Loading...</div>
+    <button id="recordBtn">🎤 Start Recording</button>
+    <button id="stopBtn" disabled>🛑 Stop</button>
+    <div id="audioPlayer"></div>
+  </div>
 
-      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SpeechRecognition();
-        recognition.lang = 'en-US';
-        recognition.interimResults = false;
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+    let stream;
+    let audioBlob;
 
-        recognition.onstart = () => {
-          startBtn.classList.add('active');
-          stopBtn.disabled = false;
-        };
+    const recordBtn = document.getElementById('recordBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const scriptEl = document.getElementById('script');
+    const audioPlayer = document.getElementById('audioPlayer');
 
-        recognition.onend = () => {
-          startBtn.classList.remove('active');
-          stopBtn.disabled = true;
-        };
-
-        recognition.onresult = (event) => {
-          const spokenText = event.results[0][0].transcript;
-          document.getElementById('resultText').innerText = 'You said: ' + spokenText;
-        };
-      }
-
-      startBtn.addEventListener('click', () => {
-        if (recognition) recognition.start();
+    // Load script from script.txt and process
+    fetch('script.txt')
+      .then(res => res.text())
+      .then(text => {
+        const cleanText = text.replace(/'/g, ""); // Xoá dấu ' khỏi từ trọng âm
+        scriptEl.innerText = cleanText;
       });
 
-      stopBtn.addEventListener('click', () => {
-        if (recognition) recognition.stop();
-      });
-    </script>
-  </body>
+    // Start Recording
+    recordBtn.addEventListener('click', async () => {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+
+      audioChunks = [];
+
+      mediaRecorder.ondataavailable = event => {
+        audioChunks.push(event.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = document.createElement('audio');
+        audio.controls = true;
+        audio.src = audioUrl;
+        audioPlayer.innerHTML = '';
+        audioPlayer.appendChild(audio);
+
+        // Download link
+        const downloadLink = document.createElement('a');
+        downloadLink.href = audioUrl;
+        downloadLink.download = 'recording.wav';
+        downloadLink.textContent = '⬇ Download recording';
+        audioPlayer.appendChild(document.createElement('br'));
+        audioPlayer.appendChild(downloadLink);
+      };
+
+      mediaRecorder.start();
+      recordBtn.classList.add('active');
+      stopBtn.disabled = false;
+      recordBtn.disabled = true;
+    });
+
+    // Stop Recording
+    stopBtn.addEventListener('click', () => {
+      mediaRecorder.stop();
+      stream.getTracks().forEach(track => track.stop());
+      recordBtn.classList.remove('active');
+      stopBtn.disabled = true;
+      recordBtn.disabled = false;
+    });
+  </script>
+</body>
 </html>
