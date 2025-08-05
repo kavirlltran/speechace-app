@@ -1,45 +1,47 @@
-const express = require('express');
-const multer = require('multer');
-const fetch = require('node-fetch');
-const path = require('path');
 require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const axios = require('axios');
 
 const app = express();
-const upload = multer();
-const PORT = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(cors());
 app.use(express.json());
 
-app.post('/analyze', upload.none(), async (req, res) => {
-  const { transcript, audioUrl } = req.body;
+app.post('/api/speechace', async (req, res) => {
+  const { text, audio_url } = req.body;
+
+  if (!text || !audio_url) {
+    return res.status(400).json({
+      status: 'error',
+      short_message: 'error_missing_parameters',
+      detail_message: 'Missing "text" or "audio_url"',
+    });
+  }
 
   try {
-    const response = await fetch('https://api.speechace.co/api/scoring/text/v9/json', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `apikey=${process.env.SPEECHACE_API_KEY}`
+    const response = await axios.get(process.env.SPEECHACE_API_URL, {
+      params: {
+        key: process.env.SPEECHACE_API_KEY,
+        dialect: 'en-us',
+        user_audio_url: audio_url,
+        text,
+        user_id: 'test_user_1',
       },
-      body: JSON.stringify({
-        dialect: "en-us",
-        user_audio_url: audioUrl,
-        text: transcript,
-        include_fluency: true,
-        include_stress: true,
-        include_intonation: true,
-        include_word: true,
-        include_errors: true
-      })
     });
 
-    const result = await response.json();
-    res.json(result);
+    res.json(response.data);
   } catch (error) {
-    res.status(500).json({ error: "Failed to analyze pronunciation." });
+    console.error('SpeechAce API error:', error.response?.data || error.message);
+    res.status(500).json({
+      status: 'error',
+      short_message: 'speechace_api_error',
+      detail_message: error.response?.data || error.message,
+    });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+app.listen(port, () => {
+  console.log(`Server running on http://localhost:${port}`);
 });
